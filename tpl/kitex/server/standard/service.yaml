@@ -1,9 +1,9 @@
-path: biz/service/{{ SnakeString (index .Methods 0).Name }}.go
+path: biz/service/{{SnakeString .ServiceName}}/{{ SnakeString (index .Methods 0).Name }}.go
 loop_method: true
 update_behavior:
   type: skip
 body: |-
-  package service
+  package {{SnakeString .ServiceName}}
 
   import (
     "context"
