@@ -1,0 +1,41 @@
+path: biz/strategy/{{SnakeString .ServiceName}}/{{ SnakeString (index .Methods 0).Name }}.go
+loop_method: true
+update_behavior:
+  type: skip
+body: |-
+  package {{SnakeString .ServiceName}}_strategy
+
+  import (
+  	"context"
+    "{{.Module}}/biz/service/{{SnakeString .ServiceName}}"
+    // "{{.Module}}/biz/logic/{{SnakeString .ServiceName}}_logic"
+
+  	{{- range $path, $aliases := ( FilterImports .Imports .Methods )}}
+  		{{- if not $aliases }}
+  			"{{$path}}"
+        {{- else if or (eq $path "github.com/cloudwego/kitex/client") (eq $path "github.com/cloudwego/kitex/pkg/serviceinfo")}}
+  		{{- else}}
+  			{{- range $alias, $is := $aliases}}
+  				{{$alias}} "{{$path}}"
+  			{{- end}}
+  		{{- end}}
+  	{{- end}}
+  )
+
+  {{range .Methods}}
+  func init() {
+    // Register the default strategy for {{.Name}}
+    {{SnakeString .ServiceName}}.{{.Name}}Strategies["default"] = func(ctx context.Context, {{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}) ({{if not .Void}}{{ .Resp.Type }}, {{end}}error) {
+        // TODO: Orchestrate your logic here
+        // Example:
+        // if err := {{SnakeString .ServiceName}}_logic.CheckPermission(ctx); err != nil { return nil, err }
+        // return {{SnakeString .ServiceName}}_logic.Do{{.Name}}(ctx, {{range .Args}}{{LowerFirst .Name}}, {{end}})
+        {{if not .Void}}
+        return nil, nil
+        {{else}}
+        return nil
+        {{end}}
+    }
+  }
+  {{end}}
+
