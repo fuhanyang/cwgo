@@ -47,7 +47,7 @@ func (a *{{.AgentName}}) Run(ctx context.Context, query string) (string, error) 
 	return fmt.Sprintf("AI Agent ({{.ModelProvider}}/{{.ModelName}}) response to: %s", query), nil
 }
 
-func (a *{{.AgentName}}) Stream(ctx context.Context, query string) (*schema.StreamReader[schema.Message], error) {
+func (a *{{.AgentName}}) Stream(ctx context.Context, query string) (*schema.StreamReader[*schema.Message], error) {
 	// stream, err := a.agent.Stream(ctx, query)
 	// if err != nil {
 	// 	return nil, err
