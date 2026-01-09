@@ -37,5 +37,45 @@ func serverFlags() []cli.Flag {
 		&cli.StringSliceFlag{Name: consts.Pass, Usage: "Pass param to hz or Kitex."},
 		&cli.BoolFlag{Name: consts.Verbose, Usage: "Turn on verbose mode."},
 		&cli.BoolFlag{Name: consts.HexTag, Usage: "Add HTTP listen for Kitex.", Destination: &globalArgs.Hex},
+
+		// Eino Integration Flags
+		&cli.BoolFlag{
+			Name:        "enable-eino",
+			Usage:       "Enable Eino AI capabilities in generated service",
+			Destination: &globalArgs.ServerArgument.EnableEino,
+		},
+		&cli.StringFlag{
+			Name:        "eino-mode",
+			Usage:       "Eino integration mode: enhanced (AI + traditional) or agent-only (AI only)",
+			Value:       "enhanced",
+			Destination: &globalArgs.ServerArgument.EinoMode,
+		},
+		&cli.StringFlag{
+			Name:        "agent-type",
+			Usage:       "Agent type: react, multi-agent, rag",
+			Value:       "react",
+			Destination: &globalArgs.ServerArgument.AgentType,
+		},
+		&cli.StringFlag{
+			Name:        "model-provider",
+			Usage:       "LLM provider: openai, claude, qwen",
+			Value:       "openai",
+			Destination: &globalArgs.ServerArgument.ModelProvider,
+		},
+		&cli.StringFlag{
+			Name:        "model-name",
+			Usage:       "Model name: gpt-4, claude-3-sonnet, qwen-max",
+			Value:       "gpt-4",
+			Destination: &globalArgs.ServerArgument.ModelName,
+		},
+		&cli.StringSliceFlag{
+			Name:  "enable-tools",
+			Usage: "Enable tools: search, calculator, http",
+		},
+		&cli.BoolFlag{
+			Name:        "enable-rag",
+			Usage:       "Enable RAG (Retrieval Augmented Generation)",
+			Destination: &globalArgs.ServerArgument.EnableRAG,
+		},
 	}
 }

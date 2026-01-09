@@ -33,6 +33,15 @@ type ServerArgument struct {
 	Verbose    bool
 	Hex        bool // add http listen for kitex
 
+	// Eino Integration
+	EnableEino    bool
+	EinoMode      string   // eino mode: enhanced(AI + traditional) or agent-only(AI only)
+	AgentType     string   // Agent type: react / multi-agent / rag
+	ModelProvider string   // LLM provider: openai / claude / qwen
+	ModelName     string   // Model name: gpt-4 / claude-3
+	EnableTools   []string // Enabled tools: search / calculator / custom
+	EnableRAG     bool     // Enable RAG
+
 	Cwd    string
 	GoSrc  string
 	GoPkg  string
@@ -61,6 +70,9 @@ func (s *ServerArgument) ParseCli(ctx *cli.Context) error {
 	s.Verbose = ctx.Bool(consts.Verbose)
 	s.SliceParam.ProtoSearchPath = ctx.StringSlice(consts.ProtoSearchPath)
 	s.SliceParam.Pass = ctx.StringSlice(consts.Pass)
+	if ctx.IsSet("enable-tools") {
+		s.EnableTools = ctx.StringSlice("enable-tools")
+	}
 	return nil
 }
 

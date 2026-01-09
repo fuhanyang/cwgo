@@ -27,6 +27,7 @@ import (
 	"github.com/cloudwego/cwgo/pkg/common/kx_registry"
 	"github.com/cloudwego/cwgo/pkg/common/utils"
 	"github.com/cloudwego/cwgo/pkg/consts"
+	"github.com/cloudwego/cwgo/pkg/eino"
 	"github.com/cloudwego/hertz/cmd/hz/app"
 	hzConfig "github.com/cloudwego/hertz/cmd/hz/config"
 	"github.com/cloudwego/hertz/cmd/hz/meta"
@@ -41,6 +42,12 @@ func Server(c *config.ServerArgument) error {
 	err = check(c)
 	if err != nil {
 		return err
+	}
+
+	if c.EnableEino {
+		if err := eino.GenerateEinoAgentModule(c); err != nil {
+			return err
+		}
 	}
 
 	switch c.Type {
