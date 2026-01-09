@@ -22,7 +22,7 @@ body: |-
   )
 
   {{range .Methods}}
-  // {{.Name}}Handler defines the function signature for {{.Name}} logic
+  // {{.Name}}Handler defines the function signature for {{.Name}} processor
   type {{.Name}}Handler func(ctx context.Context, {{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}) ({{if not .Void}}{{ .Resp.Type }}, {{end}}error)
 
   // {{.Name}}Strategies stores the execution strategies for {{.Name}}

@@ -8,7 +8,7 @@ body: |-
   import (
   	"context"
     "{{.Module}}/biz/service/{{SnakeString .ServiceName}}"
-    // "{{.Module}}/biz/logic/{{SnakeString .ServiceName}}_logic"
+    // "{{.Module}}/biz/processor/{{SnakeString .ServiceName}}_processor"
 
   	{{- range $path, $aliases := ( FilterImports .Imports .Methods )}}
   		{{- if not $aliases }}
@@ -26,10 +26,10 @@ body: |-
   func init() {
     // Register the default strategy for {{.Name}}
     {{SnakeString .ServiceName}}.{{.Name}}Strategies["default"] = func(ctx context.Context, {{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}) ({{if not .Void}}{{ .Resp.Type }}, {{end}}error) {
-        // TODO: Orchestrate your logic here
+        // TODO: Orchestrate your processor here
         // Example:
-        // if err := {{SnakeString .ServiceName}}_logic.CheckPermission(ctx); err != nil { return nil, err }
-        // return {{SnakeString .ServiceName}}_logic.Do{{.Name}}(ctx, {{range .Args}}{{LowerFirst .Name}}, {{end}})
+        // if err := {{SnakeString .ServiceName}}_processor.CheckPermission(ctx); err != nil { return nil, err }
+        // return {{SnakeString .ServiceName}}_processor.Do{{.Name}}(ctx, {{range .Args}}{{LowerFirst .Name}}, {{end}})
         {{if not .Void}}
         return nil, nil
         {{else}}
