@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/cloudwego/eino/flow/agent/react"
+	"github.com/cloudwego/eino/schema"
 )
 
 type {{.AgentName}} struct {
@@ -44,5 +45,14 @@ func New{{.AgentName}}(ctx context.Context) (*{{.AgentName}}, error) {
 func (a *{{.AgentName}}) Run(ctx context.Context, query string) (string, error) {
 	// result, err := a.agent.Generate(ctx, query)
 	return fmt.Sprintf("AI Agent ({{.ModelProvider}}/{{.ModelName}}) response to: %s", query), nil
+}
+
+func (a *{{.AgentName}}) Stream(ctx context.Context, query string) (*schema.StreamReader[schema.Message], error) {
+	// stream, err := a.agent.Stream(ctx, query)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return stream, nil
+	return nil, fmt.Errorf("Stream method not implemented")
 }
 `
