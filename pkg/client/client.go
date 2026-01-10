@@ -47,31 +47,56 @@ func Client(c *config.ClientArgument) error {
 	}
 	switch c.Type {
 	case consts.RPC:
-		var args kargs.Arguments
 		log.Verbose = c.Verbose
-		err = convertKitexArgs(c, &args)
+
+		idls, err := utils.ExpandIDLPaths(c.IdlPath)
 		if err != nil {
 			return err
 		}
 
-		kx_registry.HandleRegistry(c.CommonParam, args.TemplateDir)
-		defer kx_registry.RemoveExtension()
+		origServerName := c.ServerName
+		for i, idl := range idls {
+			cc := *c
+			common := *c.CommonParam
+			cc.CommonParam = &common
+			cc.IdlPath = idl
+			slice := *c.SliceParam
+			slice.Pass = append([]string(nil), c.SliceParam.Pass...)
+			slice.ProtoSearchPath = append([]string(nil), c.SliceParam.ProtoSearchPath...)
+			cc.SliceParam = &slice
 
-		out := new(bytes.Buffer)
-		cmd := args.BuildCmd(out)
-		err = cmd.Run()
-		if err != nil {
-			if args.Use != "" {
-				out := strings.TrimSpace(out.String())
-				if strings.HasSuffix(out, thriftgo.TheUseOptionMessage) {
-					utils.ReplaceThriftVersion()
-				}
+			if i > 0 {
+				cc.ServerName = ""
+			} else {
+				cc.ServerName = origServerName
 			}
-			os.Exit(1)
+
+			var args kargs.Arguments
+			err = convertKitexArgs(&cc, &args)
+			if err != nil {
+				return err
+			}
+
+			kx_registry.HandleRegistry(cc.CommonParam, args.TemplateDir)
+			defer kx_registry.RemoveExtension()
+
+			out := new(bytes.Buffer)
+			cmd := args.BuildCmd(out)
+			err = cmd.Run()
+			if err != nil {
+				if args.Use != "" {
+					out := strings.TrimSpace(out.String())
+					if strings.HasSuffix(out, thriftgo.TheUseOptionMessage) {
+						utils.ReplaceThriftVersion()
+					}
+				}
+				os.Exit(1)
+			}
+			utils.Hessian2PostProcessing(args)
 		}
+
 		utils.ReplaceThriftVersion()
 		utils.UpgradeGolangProtobuf()
-		utils.Hessian2PostProcessing(args)
 	case consts.HTTP:
 		args := hzConfig.NewArgument()
 		utils.SetHzVerboseLog(c.Verbose)

@@ -32,9 +32,24 @@ import (
 
 func convertHzArgument(sa *config.ServerArgument, hzArgument *hzConfig.Argument) (err error) {
 	// Common commands
-	abPath, err := filepath.Abs(sa.IdlPath)
+	idls, err := utils.ExpandIDLPaths(sa.IdlPath)
 	if err != nil {
-		return fmt.Errorf("idl path %s is not absolute", sa.IdlPath)
+		return err
+	}
+	absIdls := make([]string, 0, len(idls))
+	var idlExt string
+	for _, p := range idls {
+		abPath, err := filepath.Abs(p)
+		if err != nil {
+			return fmt.Errorf("idl path %s is not absolute", p)
+		}
+		absIdls = append(absIdls, abPath)
+		ext := strings.ToLower(filepath.Ext(abPath))
+		if idlExt == "" {
+			idlExt = ext
+		} else if ext != idlExt {
+			return fmt.Errorf("idl paths must have the same extension, got %s and %s", idlExt, ext)
+		}
 	}
 
 	if strings.HasSuffix(sa.Template, consts.SuffixGit) {
@@ -78,7 +93,7 @@ func convertHzArgument(sa *config.ServerArgument, hzArgument *hzConfig.Argument)
 		}
 	}
 
-	hzArgument.IdlPaths = []string{abPath}
+	hzArgument.IdlPaths = absIdls
 	hzArgument.Gomod = sa.GoMod
 	hzArgument.ServiceName = sa.ServerName
 	hzArgument.OutDir = sa.OutDir
@@ -89,7 +104,7 @@ func convertHzArgument(sa *config.ServerArgument, hzArgument *hzConfig.Argument)
 	hzArgument.Gopath = sa.GoPath
 	hzArgument.Verbose = sa.Verbose
 	// Automatic judgment param
-	hzArgument.IdlType, err = utils.GetIdlType(abPath)
+	hzArgument.IdlType, err = utils.GetIdlType(absIdls[0])
 	if err != nil {
 		return
 	}

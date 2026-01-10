@@ -32,9 +32,24 @@ import (
 
 func convertHzArgument(ca *config.ClientArgument, hzArgument *hzConfig.Argument) (err error) {
 	// Common commands
-	abPath, err := filepath.Abs(ca.IdlPath)
+	idls, err := utils.ExpandIDLPaths(ca.IdlPath)
 	if err != nil {
-		return fmt.Errorf("idl path %s is not absolute", ca.IdlPath)
+		return err
+	}
+	absIdls := make([]string, 0, len(idls))
+	var idlExt string
+	for _, p := range idls {
+		abPath, err := filepath.Abs(p)
+		if err != nil {
+			return fmt.Errorf("idl path %s is not absolute", p)
+		}
+		absIdls = append(absIdls, abPath)
+		ext := strings.ToLower(filepath.Ext(abPath))
+		if idlExt == "" {
+			idlExt = ext
+		} else if ext != idlExt {
+			return fmt.Errorf("idl paths must have the same extension, got %s and %s", idlExt, ext)
+		}
 	}
 
 	if strings.HasSuffix(ca.Template, consts.SuffixGit) {
@@ -59,7 +74,7 @@ func convertHzArgument(ca *config.ClientArgument, hzArgument *hzConfig.Argument)
 		}
 	}
 
-	hzArgument.IdlPaths = []string{abPath}
+	hzArgument.IdlPaths = absIdls
 	hzArgument.Gomod = ca.GoMod
 	hzArgument.ServiceName = ca.ServerName
 	hzArgument.Includes = ca.SliceParam.ProtoSearchPath
@@ -70,7 +85,7 @@ func convertHzArgument(ca *config.ClientArgument, hzArgument *hzConfig.Argument)
 	hzArgument.Verbose = ca.Verbose
 	hzArgument.OutDir = ca.Cwd
 	// Automatic judgment param
-	hzArgument.IdlType, err = utils.GetIdlType(abPath)
+	hzArgument.IdlType, err = utils.GetIdlType(absIdls[0])
 	if err != nil {
 		return
 	}

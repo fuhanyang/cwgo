@@ -50,7 +50,19 @@ func convertKitexArgs(sa *config.ClientArgument, kitexArgument *kargs.Arguments)
 		"compatible_names",
 		"frugal_tag",
 	)
-	kitexArgument.IDL = sa.IdlPath
+	idls, err := utils.ExpandIDLPaths(sa.IdlPath)
+	if err != nil {
+		return err
+	}
+	if len(idls) > 1 {
+		root, err := utils.SelectRootIDLByService(idls, sa.ServerName)
+		if err != nil {
+			return err
+		}
+		kitexArgument.IDL = root
+	} else {
+		kitexArgument.IDL = idls[0]
+	}
 
 	f.BoolVar(&kitexArgument.NoFastAPI, "no-fast-api", false, "Generate codes without injecting fast method.")
 	f.StringVar(&kitexArgument.Use, "use", "",

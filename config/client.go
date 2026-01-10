@@ -17,6 +17,8 @@
 package config
 
 import (
+	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/cloudwego/cwgo/pkg/consts"
@@ -51,5 +53,26 @@ func (c *ClientArgument) ParseCli(ctx *cli.Context) error {
 	c.Verbose = ctx.Bool(consts.Verbose)
 	c.SliceParam.ProtoSearchPath = ctx.StringSlice(consts.ProtoSearchPath)
 	c.SliceParam.Pass = ctx.StringSlice(consts.Pass)
+	// See ServerArgument.ParseCli for why we accept extra positional IDL args.
+	if ctx.IsSet(consts.IDLPath) && ctx.Args().Len() > 0 {
+		extras := ctx.Args().Slice()
+		allIDL := true
+		for _, a := range extras {
+			ext := strings.ToLower(filepath.Ext(a))
+			if ext != ".proto" && ext != ".thrift" {
+				allIDL = false
+				break
+			}
+		}
+		if allIDL {
+			if c.IdlPath == "" {
+				c.IdlPath = strings.Join(extras, consts.Comma)
+			} else {
+				c.IdlPath = c.IdlPath + consts.Comma + strings.Join(extras, consts.Comma)
+			}
+		} else {
+			return fmt.Errorf("unexpected arguments: %v (if you intended a glob, quote it like --idl \"./dir/*.proto\")", extras)
+		}
+	}
 	return nil
 }

@@ -17,6 +17,8 @@
 package config
 
 import (
+	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/cloudwego/cwgo/pkg/consts"
@@ -70,6 +72,30 @@ func (s *ServerArgument) ParseCli(ctx *cli.Context) error {
 	s.Verbose = ctx.Bool(consts.Verbose)
 	s.SliceParam.ProtoSearchPath = ctx.StringSlice(consts.ProtoSearchPath)
 	s.SliceParam.Pass = ctx.StringSlice(consts.Pass)
+	// If user runs `--idl ./dir/*.proto` without quotes, the shell will expand it
+	// into multiple args. urfave/cli will treat the extras as positional args,
+	// which cwgo does not otherwise use. Accept these extra .proto/.thrift args
+	// as additional idl inputs to make `*.proto` work naturally.
+	if ctx.IsSet(consts.IDLPath) && ctx.Args().Len() > 0 {
+		extras := ctx.Args().Slice()
+		allIDL := true
+		for _, a := range extras {
+			ext := strings.ToLower(filepath.Ext(a))
+			if ext != ".proto" && ext != ".thrift" {
+				allIDL = false
+				break
+			}
+		}
+		if allIDL {
+			if s.IdlPath == "" {
+				s.IdlPath = strings.Join(extras, consts.Comma)
+			} else {
+				s.IdlPath = s.IdlPath + consts.Comma + strings.Join(extras, consts.Comma)
+			}
+		} else {
+			return fmt.Errorf("unexpected arguments: %v (if you intended a glob, quote it like --idl \"./dir/*.proto\")", extras)
+		}
+	}
 	if ctx.IsSet("enable-tools") {
 		s.EnableTools = ctx.StringSlice("enable-tools")
 	}
