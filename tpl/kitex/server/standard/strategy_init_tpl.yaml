@@ -1,0 +1,11 @@
+path: strategy_init.go
+update_behavior:
+  type: cover
+body: |-
+  package main
+
+  import (
+    // Blank import to trigger init() registration in biz/strategy/...
+    _ "{{.Module}}/biz/strategy/{{SnakeString .ServiceName}}_strategy"
+  )
+

@@ -1,6 +1,6 @@
 path: biz/processor/doc.go
 update_behavior:
-  type: skip
+  type: cover
 body: |-
   // Package processor is where your core business processor should be implemented.
   //

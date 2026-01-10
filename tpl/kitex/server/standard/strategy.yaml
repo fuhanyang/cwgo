@@ -1,4 +1,4 @@
-path: biz/strategy/{{SnakeString .ServiceName}}/{{ SnakeString (index .Methods 0).Name }}.go
+path: biz/strategy/{{SnakeString .ServiceName}}_strategy/{{ SnakeString (index .Methods 0).Name }}.go
 loop_method: true
 update_behavior:
   type: skip

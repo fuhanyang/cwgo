@@ -1,6 +1,6 @@
 path: readme.md
 update_behavior:
-  type: skip
+  type: cover
 body: |-
   # *** Project
 
