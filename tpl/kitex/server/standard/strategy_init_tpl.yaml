@@ -5,7 +5,97 @@ body: |-
   package main
 
   import (
-    // Blank import to trigger init() registration in biz/strategy/...
-    _ "{{.Module}}/biz/strategy/{{SnakeString .ServiceName}}_strategy"
+    "context"
+    "fmt"
+
+    "{{.Module}}/conf"
+    "{{.Module}}/biz/service/{{SnakeString .ServiceName}}"
+    "{{.Module}}/biz/strategy/{{SnakeString .ServiceName}}_strategy"
+  	{{- range $path, $aliases := ( FilterImports .Imports .Methods )}}
+  		{{- if not $aliases }}
+  			"{{$path}}"
+        {{- else if or (eq $path "github.com/cloudwego/kitex/client") (eq $path "github.com/cloudwego/kitex/pkg/serviceinfo")}}
+  		{{- else}}
+  			{{- range $alias, $is := $aliases}}
+  				{{$alias}} "{{$path}}"
+  			{{- end}}
+  		{{- end}}
+  	{{- end}}
   )
+
+  func initStrategies() error {
+    // 1) Explicitly register all processors (user-defined).
+    {{ range .Methods }}
+    if err := {{SnakeString $.ServiceName}}_strategy.Register{{.Name}}Processors(); err != nil {
+      return fmt.Errorf("register processors for {{.Name}}: %w", err)
+    }
+    {{ end }}
+
+    // 2) Build strategies from config (strategy -> ordered processors).
+    cfg := conf.GetConf()
+    {{ range .Methods }}
+    {
+      key := "{{SnakeString .Name}}"
+      strategies := cfg.Strategy[key]
+      if len(strategies) == 0 {
+        strategies = map[string][]string{"default": []string{}}
+      }
+
+      for strategyName, pipeline := range strategies {
+        // Copy to avoid capturing the loop variable.
+        steps := append([]string(nil), pipeline...)
+
+        {{ if .Void }}
+        if err := {{SnakeString $.ServiceName}}.{{.Name}}Strategies.Register(strategyName, func(ctx context.Context, {{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}) error {
+          st := &{{SnakeString $.ServiceName}}.{{.Name}}State{
+            Ctx: ctx,
+            {{- range .Args}}
+            {{.Name}}: {{LowerFirst .Name}},
+            {{- end}}
+            Vars: map[string]any{},
+          }
+          for _, procName := range steps {
+            proc, ok := {{SnakeString $.ServiceName}}.{{.Name}}Processors.Get(procName)
+            if !ok {
+              return fmt.Errorf("{{.Name}} strategy %q: processor %q not found (available: %v)", strategyName, procName, {{SnakeString $.ServiceName}}.{{.Name}}Processors.Names())
+            }
+            if err := proc(st); err != nil {
+              return fmt.Errorf("{{.Name}} strategy %q: processor %q failed: %w", strategyName, procName, err)
+            }
+          }
+          return nil
+        }); err != nil {
+          return fmt.Errorf("register {{.Name}} strategy %q: %w", strategyName, err)
+        }
+        {{ else }}
+        if err := {{SnakeString $.ServiceName}}.{{.Name}}Strategies.Register(strategyName, func(ctx context.Context, {{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}) (resp {{.Resp.Type}}, err error) {
+          st := &{{SnakeString $.ServiceName}}.{{.Name}}State{
+            Ctx: ctx,
+            {{- range .Args}}
+            {{.Name}}: {{LowerFirst .Name}},
+            {{- end}}
+            Vars: map[string]any{},
+          }
+          for _, procName := range steps {
+            proc, ok := {{SnakeString $.ServiceName}}.{{.Name}}Processors.Get(procName)
+            if !ok {
+              err = fmt.Errorf("{{.Name}} strategy %q: processor %q not found (available: %v)", strategyName, procName, {{SnakeString $.ServiceName}}.{{.Name}}Processors.Names())
+              return
+            }
+            if err = proc(st); err != nil {
+              err = fmt.Errorf("{{.Name}} strategy %q: processor %q failed: %w", strategyName, procName, err)
+              return
+            }
+          }
+          resp = st.Resp
+          return
+        }); err != nil {
+          return fmt.Errorf("register {{.Name}} strategy %q: %w", strategyName, err)
+        }
+        {{ end }}
+      }
+    }
+    {{ end }}
+    return nil
+  }
 

@@ -6,36 +6,25 @@ body: |-
   package {{SnakeString .ServiceName}}_strategy
 
   import (
-  	"context"
     "{{.Module}}/biz/service/{{SnakeString .ServiceName}}"
-    // "{{.Module}}/biz/processor/{{SnakeString .ServiceName}}_processor"
-
-  	{{- range $path, $aliases := ( FilterImports .Imports .Methods )}}
-  		{{- if not $aliases }}
-  			"{{$path}}"
-        {{- else if or (eq $path "github.com/cloudwego/kitex/client") (eq $path "github.com/cloudwego/kitex/pkg/serviceinfo")}}
-  		{{- else}}
-  			{{- range $alias, $is := $aliases}}
-  				{{$alias}} "{{$path}}"
-  			{{- end}}
-  		{{- end}}
-  	{{- end}}
   )
 
   {{range .Methods}}
-  func init() {
-    // Register the default strategy for {{.Name}}
-    {{SnakeString .ServiceName}}.{{.Name}}Strategies["default"] = func(ctx context.Context, {{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}) ({{if not .Void}}{{ .Resp.Type }}, {{end}}error) {
-        // TODO: Orchestrate your processor here
-        // Example:
-        // if err := {{SnakeString .ServiceName}}_processor.CheckPermission(ctx); err != nil { return nil, err }
-        // return {{SnakeString .ServiceName}}_processor.Do{{.Name}}(ctx, {{range .Args}}{{LowerFirst .Name}}, {{end}})
-        {{if not .Void}}
-        return nil, nil
-        {{else}}
-        return nil
-        {{end}}
-    }
+  // Keep the imported service package used even if you haven't registered processors yet.
+  var _ = {{SnakeString .ServiceName}}.{{.Name}}Processors
+
+  // Register{{.Name}}Processors registers named processors for {{.Name}}.
+  // These processor names should match conf.yaml:
+  //   strategy:
+  //     {{SnakeString .Name}}:
+  //       default: ["check_permission", "do_{{SnakeString .Name}}"]
+  func Register{{.Name}}Processors() error {
+    // Example:
+    // return {{SnakeString .ServiceName}}.{{.Name}}Processors.Register("check_permission", func(s *{{SnakeString .ServiceName}}.{{.Name}}State) error {
+    //   // TODO: your logic here
+    //   return nil
+    // })
+    return nil
   }
   {{end}}
 

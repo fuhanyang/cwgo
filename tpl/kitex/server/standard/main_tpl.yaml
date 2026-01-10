@@ -22,6 +22,11 @@ body: |-
   )
 
   func main() {
+    if err := initStrategies(); err != nil {
+      klog.Error("init strategies failed: ", err)
+      return
+    }
+
     opts := kitexInit()
 
     svr := {{ToLower .ServiceName}}.NewServer(new({{.ServiceName}}Impl), opts...)

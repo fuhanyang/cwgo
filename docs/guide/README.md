@@ -15,6 +15,7 @@
 - [附录](11_appendix.md)
 - [Eino 框架集成](12_eino_integration.md)
 - [多微服务工作区与中心化 IDL 仓库实践（go.work）](13_multi_service_workspace.md)
+- [配置驱动策略编排方案总结](14_strategy_pipeline.md)
 
 
 ---

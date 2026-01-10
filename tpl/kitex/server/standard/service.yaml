@@ -7,7 +7,9 @@ body: |-
 
   import (
   	"context"
-    "errors"
+    "fmt"
+
+    "{{.Module}}/biz/strategy"
 
   	{{- range $path, $aliases := ( FilterImports .Imports .Methods )}}
   		{{- if not $aliases }}
@@ -25,8 +27,32 @@ body: |-
   // {{.Name}}Handler defines the function signature for {{.Name}} processor
   type {{.Name}}Handler func(ctx context.Context, {{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}) ({{if not .Void}}{{ .Resp.Type }}, {{end}}error)
 
+  // {{.Name}}State carries request-scoped data across processors.
+  type {{.Name}}State struct {
+    Ctx  context.Context
+    {{- range .Args}}
+    {{.Name}} {{.Type}}
+    {{- end}}
+    {{- if not .Void}}
+    Resp {{.Resp.Type}}
+    {{- end}}
+    Vars map[string]any
+  }
+
+  // {{.Name}}Processor is an atomic step in a strategy pipeline.
+  type {{.Name}}Processor func(s *{{.Name}}State) error
+
+  // {{.Name}}Processors stores named processors for {{.Name}}.
+  var {{.Name}}Processors = strategy.NewRegistry[{{.Name}}Processor]()
+
   // {{.Name}}Strategies stores the execution strategies for {{.Name}}
-  var {{.Name}}Strategies = make(map[string]{{.Name}}Handler)
+  var {{.Name}}Strategies = strategy.NewRegistry[{{.Name}}Handler]()
+
+  // Choose{{.Name}}Strategy selects a strategy name for {{.Name}} per request.
+  // Returning empty string means using "default".
+  var Choose{{.Name}}Strategy = func(ctx context.Context, {{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}) string {
+    return "default"
+  }
 
   type {{.Name}}Service struct {
     ctx context.Context
@@ -41,6 +67,7 @@ body: |-
 
   func (s *{{.Name}}Service) Run({{if not .ClientStreaming}}{{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}{{end}}stream {{.PkgRefName}}.{{.ServiceName}}_{{.RawName}}Server) (err error) {
     // Streaming not supported in strategy mode yet
+    err = fmt.Errorf("streaming not supported in strategy mode yet")
     return
   }
   {{- else}}
@@ -55,10 +82,15 @@ body: |-
 
   // Run calls the registered strategy for {{.Name}}
   func (s *{{.Name}}Service) Run({{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}) error {
-    if strategy, ok := {{.Name}}Strategies["default"]; ok {
-        return strategy(s.ctx, {{range .Args}}{{LowerFirst .Name}}, {{end}})
+    name := Choose{{.Name}}Strategy(s.ctx, {{range .Args}}{{LowerFirst .Name}}, {{end}})
+    if name == "" {
+      name = "default"
     }
-    return errors.New("strategy 'default' not found for {{.Name}}")
+    handler, ok := {{.Name}}Strategies.Get(name)
+    if !ok {
+      return fmt.Errorf("strategy %q not found for {{.Name}} (available: %v)", name, {{.Name}}Strategies.Names())
+    }
+    return handler(s.ctx, {{range .Args}}{{LowerFirst .Name}}, {{end}})
   }
   {{else}}
 
@@ -69,11 +101,16 @@ body: |-
 
   // Run calls the registered strategy for {{.Name}}
   func (s *{{.Name}}Service) Run({{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}) (resp {{.Resp.Type}}, err error) {
-    if strategy, ok := {{.Name}}Strategies["default"]; ok {
-        return strategy(s.ctx, {{range .Args}}{{LowerFirst .Name}}, {{end}})
+    name := Choose{{.Name}}Strategy(s.ctx, {{range .Args}}{{LowerFirst .Name}}, {{end}})
+    if name == "" {
+      name = "default"
     }
-    err = errors.New("strategy 'default' not found for {{.Name}}")
-    return
+    handler, ok := {{.Name}}Strategies.Get(name)
+    if !ok {
+      err = fmt.Errorf("strategy %q not found for {{.Name}} (available: %v)", name, {{.Name}}Strategies.Names())
+      return
+    }
+    return handler(s.ctx, {{range .Args}}{{LowerFirst .Name}}, {{end}})
   }
   {{end}}
   {{end}}
