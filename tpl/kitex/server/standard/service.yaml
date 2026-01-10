@@ -40,10 +40,10 @@ body: |-
   }
 
   // {{.Name}}Processor is an atomic step in a strategy pipeline.
-  type {{.Name}}Processor func(s *{{.Name}}State) error
+  type {{.Name}}Processor = strategy.Processor[{{.Name}}State]
 
   // {{.Name}}Processors stores named processors for {{.Name}}.
-  var {{.Name}}Processors = strategy.NewRegistry[{{.Name}}Processor]()
+  var {{.Name}}Processors = strategy.NewProcessorRegistry[{{.Name}}State]()
 
   // {{.Name}}Strategies stores the execution strategies for {{.Name}}
   var {{.Name}}Strategies = strategy.NewRegistry[{{.Name}}Handler]()

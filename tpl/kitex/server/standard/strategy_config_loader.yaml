@@ -1,0 +1,64 @@
+path: biz/strategy/config_loader.go
+update_behavior:
+  type: skip
+body: |-
+  package strategy
+  
+  import (
+    "fmt"
+    "os"
+    "path/filepath"
+  
+    "gopkg.in/yaml.v3"
+  )
+  
+  // ServiceStrategyConfig is a per-service strategy config:
+  // operation_key -> strategy_name -> ordered processor names.
+  //
+  // Example (YAML):
+  //
+  //   search:
+  //     default: ["init_response", "validate_req"]
+  //     debug:   ["init_response", "validate_req", "log_query"]
+  type ServiceStrategyConfig map[string]map[string][]string
+  
+  // LoadStrategyConfigFromDir loads strategy config from a strategy package directory.
+  //
+  // It looks for (in order):
+  // - strategy.<env>.yaml
+  // - strategy.yaml
+  //
+  // Returns (cfg, found, err).
+  func LoadStrategyConfigFromDir(dir, env string) (ServiceStrategyConfig, bool, error) {
+    if dir == "" {
+      return nil, false, fmt.Errorf("strategy config: empty dir")
+    }
+    candidates := []string{
+      filepath.Join(dir, fmt.Sprintf("strategy.%s.yaml", env)),
+      filepath.Join(dir, "strategy.yaml"),
+    }
+  
+    var p string
+    for _, c := range candidates {
+      if _, err := os.Stat(c); err == nil {
+        p = c
+        break
+      } else if err != nil && !os.IsNotExist(err) {
+        return nil, false, fmt.Errorf("strategy config: stat %q: %w", c, err)
+      }
+    }
+    if p == "" {
+      return nil, false, nil
+    }
+  
+    b, err := os.ReadFile(p)
+    if err != nil {
+      return nil, true, fmt.Errorf("strategy config: read %q: %w", p, err)
+    }
+  
+    var cfg ServiceStrategyConfig
+    if err := yaml.Unmarshal(b, &cfg); err != nil {
+      return nil, true, fmt.Errorf("strategy config: parse %q: %w", p, err)
+    }
+    return cfg, true, nil
+  }

@@ -1,0 +1,9 @@
+path: biz/strategy/{{SnakeString .ServiceName}}_strategy/strategy.yaml
+update_behavior:
+  type: skip
+body: |-
+  {{ range .Methods }}
+  {{ SnakeString .Name }}:
+    default: []
+  
+  {{ end }}

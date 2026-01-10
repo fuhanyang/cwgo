@@ -24,7 +24,6 @@ body: |-
   type Config struct {
   	Env      string
   	Kitex    Kitex    `yaml:"kitex"`
-    Strategy map[string]map[string][]string `yaml:"strategy"`
   	MySQL    MySQL    `yaml:"mysql"`
   	Redis    Redis    `yaml:"redis"`
   	Registry Registry `yaml:"registry"`

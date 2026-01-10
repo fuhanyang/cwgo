@@ -197,7 +197,7 @@ func Server(c *config.ServerArgument) error {
 			} else {
 				workPath, err := filepath.Abs(consts.CurrentDir)
 				if err != nil {
-					return fmt.Errorf(err.Error())
+					return fmt.Errorf("get absolute path failed: %w", err)
 				}
 				return fmt.Errorf("go.mod not found in %s", workPath)
 			}

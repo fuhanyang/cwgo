@@ -98,3 +98,54 @@ body: |-
     sort.Strings(names)
     return names
   }
+
+  // Processor is an atomic, named step in a strategy pipeline.
+  // It is recommended to keep processors stateless and reusable.
+  type Processor[S any] interface {
+    Name() string
+    Process(s *S) error
+  }
+
+  // ProcessorFunc adapts a function into a Processor.
+  type ProcessorFunc[S any] struct {
+    name string
+    fn   func(*S) error
+  }
+
+  func (p ProcessorFunc[S]) Name() string { return p.name }
+
+  func (p ProcessorFunc[S]) Process(s *S) error { return p.fn(s) }
+
+  func NewProcessorFunc[S any](name string, fn func(*S) error) Processor[S] {
+    return ProcessorFunc[S]{name: name, fn: fn}
+  }
+
+  // ProcessorRegistry stores named processors.
+  type ProcessorRegistry[S any] struct {
+    r *Registry[Processor[S]]
+  }
+
+  func NewProcessorRegistry[S any]() *ProcessorRegistry[S] {
+    return &ProcessorRegistry[S]{r: NewRegistry[Processor[S]]()}
+  }
+
+  func (pr *ProcessorRegistry[S]) Register(p Processor[S]) error {
+    if p == nil {
+      return fmt.Errorf("strategy: nil processor")
+    }
+    name := p.Name()
+    if name == "" {
+      return fmt.Errorf("strategy: empty processor name")
+    }
+    return pr.r.Register(name, p)
+  }
+
+  func (pr *ProcessorRegistry[S]) RegisterFunc(name string, fn func(*S) error) error {
+    return pr.r.Register(name, NewProcessorFunc[S](name, fn))
+  }
+
+  func (pr *ProcessorRegistry[S]) Get(name string) (p Processor[S], ok bool) {
+    return pr.r.Get(name)
+  }
+
+  func (pr *ProcessorRegistry[S]) Names() []string { return pr.r.Names() }

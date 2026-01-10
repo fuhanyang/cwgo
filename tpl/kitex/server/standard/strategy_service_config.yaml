@@ -1,0 +1,25 @@
+path: biz/strategy/{{SnakeString .ServiceName}}_strategy/config.go
+update_behavior:
+  type: skip
+body: |-
+  package {{SnakeString .ServiceName}}_strategy
+  
+  import (
+    "fmt"
+    "path/filepath"
+    "runtime"
+  
+    "{{.Module}}/biz/strategy"
+    "{{.Module}}/conf"
+  )
+  
+  // LoadStrategyConfig loads per-service strategy config from this package directory.
+  // It prefers strategy.<env>.yaml, then strategy.yaml.
+  func LoadStrategyConfig() (strategy.ServiceStrategyConfig, bool, error) {
+    _, file, _, ok := runtime.Caller(0)
+    if !ok || file == "" {
+      return nil, false, fmt.Errorf("{{SnakeString .ServiceName}}_strategy: resolve package dir failed")
+    }
+    dir := filepath.Dir(file)
+    return strategy.LoadStrategyConfigFromDir(dir, conf.GetEnv())
+  }

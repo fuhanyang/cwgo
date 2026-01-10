@@ -8,7 +8,6 @@ body: |-
     "context"
     "fmt"
 
-    "{{.Module}}/conf"
     "{{.Module}}/biz/service/{{SnakeString .ServiceName}}"
     "{{.Module}}/biz/strategy/{{SnakeString .ServiceName}}_strategy"
   	{{- range $path, $aliases := ( FilterImports .Imports .Methods )}}
@@ -31,12 +30,16 @@ body: |-
     }
     {{ end }}
 
-    // 2) Build strategies from config (strategy -> ordered processors).
-    cfg := conf.GetConf()
+    // 2) Build strategies from per-service config (strategy -> ordered processors).
+    cfg, found, err := {{SnakeString $.ServiceName}}_strategy.LoadStrategyConfig()
+    if err != nil {
+      return fmt.Errorf("load {{SnakeString $.ServiceName}} strategy config: %w", err)
+    }
+    _ = found // found=false means no strategy file; will fallback to default.
     {{ range .Methods }}
     {
       key := "{{SnakeString .Name}}"
-      strategies := cfg.Strategy[key]
+      strategies := cfg[key]
       if len(strategies) == 0 {
         strategies = map[string][]string{"default": []string{}}
       }
@@ -59,7 +62,7 @@ body: |-
             if !ok {
               return fmt.Errorf("{{.Name}} strategy %q: processor %q not found (available: %v)", strategyName, procName, {{SnakeString $.ServiceName}}.{{.Name}}Processors.Names())
             }
-            if err := proc(st); err != nil {
+            if err := proc.Process(st); err != nil {
               return fmt.Errorf("{{.Name}} strategy %q: processor %q failed: %w", strategyName, procName, err)
             }
           }
@@ -82,7 +85,7 @@ body: |-
               err = fmt.Errorf("{{.Name}} strategy %q: processor %q not found (available: %v)", strategyName, procName, {{SnakeString $.ServiceName}}.{{.Name}}Processors.Names())
               return
             }
-            if err = proc(st); err != nil {
+            if err = proc.Process(st); err != nil {
               err = fmt.Errorf("{{.Name}} strategy %q: processor %q failed: %w", strategyName, procName, err)
               return
             }

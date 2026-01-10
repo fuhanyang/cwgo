@@ -14,13 +14,15 @@ body: |-
   var _ = {{SnakeString .ServiceName}}.{{.Name}}Processors
 
   // Register{{.Name}}Processors registers named processors for {{.Name}}.
-  // These processor names should match conf.yaml:
-  //   strategy:
-  //     {{SnakeString .Name}}:
-  //       default: ["check_permission", "do_{{SnakeString .Name}}"]
+  // These processor names should match:
+  //   biz/strategy/{{SnakeString $.ServiceName}}_strategy/strategy.yaml (or strategy.<env>.yaml)
+  //
+  // Example:
+  //   {{SnakeString .Name}}:
+  //     default: ["check_permission", "do_{{SnakeString .Name}}"]
   func Register{{.Name}}Processors() error {
     // Example:
-    // return {{SnakeString .ServiceName}}.{{.Name}}Processors.Register("check_permission", func(s *{{SnakeString .ServiceName}}.{{.Name}}State) error {
+    // return {{SnakeString .ServiceName}}.{{.Name}}Processors.RegisterFunc("check_permission", func(s *{{SnakeString .ServiceName}}.{{.Name}}State) error {
     //   // TODO: your logic here
     //   return nil
     // })
