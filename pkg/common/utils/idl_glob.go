@@ -140,6 +140,24 @@ var (
 	reService      = regexp.MustCompile(`\bservice\s+([A-Za-z_][A-Za-z0-9_]*)\b`)
 )
 
+// ServiceNamesFromIDL returns service names declared in a .proto/.thrift file
+// using a lightweight regex scan (best-effort).
+func ServiceNamesFromIDL(path string) ([]string, error) {
+	m, err := scanIDLServiceNames(path)
+	if err != nil {
+		return nil, err
+	}
+	if len(m) == 0 {
+		return []string{}, nil
+	}
+	out := make([]string, 0, len(m))
+	for name := range m {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
 func scanIDLServiceNames(path string) (map[string]struct{}, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {

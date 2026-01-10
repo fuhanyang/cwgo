@@ -18,6 +18,7 @@ package client
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"strings"
 
@@ -54,8 +55,7 @@ func Client(c *config.ClientArgument) error {
 			return err
 		}
 
-		origServerName := c.ServerName
-		for i, idl := range idls {
+		for _, idl := range idls {
 			cc := *c
 			common := *c.CommonParam
 			cc.CommonParam = &common
@@ -65,10 +65,26 @@ func Client(c *config.ClientArgument) error {
 			slice.ProtoSearchPath = append([]string(nil), c.SliceParam.ProtoSearchPath...)
 			cc.SliceParam = &slice
 
-			if i > 0 {
-				cc.ServerName = ""
+			services, err := utils.ServiceNamesFromIDL(idl)
+			if err != nil {
+				return err
+			}
+			if len(services) == 0 {
+				continue
+			}
+			if len(services) == 1 {
+				cc.ServerName = services[0]
 			} else {
-				cc.ServerName = origServerName
+				found := false
+				for _, s := range services {
+					if s == c.ServerName {
+						found = true
+						break
+					}
+				}
+				if !found {
+					return fmt.Errorf("idl %s contains multiple services (%s); please specify one with --service", idl, strings.Join(services, ", "))
+				}
 			}
 
 			var args kargs.Arguments

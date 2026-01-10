@@ -431,7 +431,7 @@ layouts:
       | biz/handler  | Used for request processing, validation and return of response. |
       | biz/service  | The actual business logic. |
       | biz/dal  | Logic for operating the storage layer |
-      | biz/route  | Routing and middleware registration |
+      | biz/router  | Routing and middleware registration |
       | biz/utils  | Wrapped some common methods |
 
       ## How to run
@@ -481,6 +481,12 @@ layouts:
       /.vscode
       /output
       *.local.yml
+
+  - path: biz/service/.gitkeep
+    delims:
+      - ""
+      - ""
+    body: |-
 
   - path: biz/utils/resp.go
     delims:

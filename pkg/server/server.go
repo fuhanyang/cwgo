@@ -59,8 +59,7 @@ func Server(c *config.ServerArgument) error {
 			return err
 		}
 
-		origServerName := c.ServerName
-		for i, idl := range idls {
+		for _, idl := range idls {
 			// Deep-copy embedded pointers to avoid mutating the original config across runs.
 			cc := *c
 			common := *c.CommonParam
@@ -71,12 +70,31 @@ func Server(c *config.ServerArgument) error {
 			slice.ProtoSearchPath = append([]string(nil), c.SliceParam.ProtoSearchPath...)
 			cc.SliceParam = &slice
 
-			// Only the first IDL run generates the server scaffold. Subsequent runs
-			// generate code under kitex_gen for additional proto files.
-			if i > 0 {
-				cc.ServerName = ""
+			// If the IDL declares exactly one service, use it as ServerName so that
+			// templates generate to the correct package/path (important for multi-proto).
+			services, err := utils.ServiceNamesFromIDL(idl)
+			if err != nil {
+				return err
+			}
+			if len(services) == 0 {
+				// No service declared in this file; generating server code from it
+				// doesn't make sense. Skip it (types should be pulled via imports).
+				continue
+			}
+			if len(services) == 1 {
+				cc.ServerName = services[0]
 			} else {
-				cc.ServerName = origServerName
+				// Multiple services in one IDL file: try to honor user-provided name.
+				found := false
+				for _, s := range services {
+					if s == c.ServerName {
+						found = true
+						break
+					}
+				}
+				if !found {
+					return fmt.Errorf("idl %s contains multiple services (%s); please specify one with --service", idl, strings.Join(services, ", "))
+				}
 			}
 
 			var args kargs.Arguments
