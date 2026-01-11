@@ -3,13 +3,15 @@ update_behavior:
   type: cover
 body: |-
   package strategy
-  
+
   import (
     "fmt"
     "sort"
     "sync"
+
+    "{{.Module}}/biz/processor"
   )
-  
+
   // Registry stores named handlers and the currently active handler name.
   // It is safe for concurrent reads after initialization.
   type Registry[H any] struct {
@@ -17,11 +19,11 @@ body: |-
     handlers map[string]H
     active   string
   }
-  
+
   func NewRegistry[H any]() *Registry[H] {
     return &Registry[H]{handlers: make(map[string]H)}
   }
-  
+
   // Register registers a handler under a name.
   // It returns an error if name is empty or already registered.
   func (r *Registry[H]) Register(name string, h H) error {
@@ -39,7 +41,7 @@ body: |-
     r.handlers[name] = h
     return nil
   }
-  
+
   // SetActive selects an already-registered strategy name as active.
   func (r *Registry[H]) SetActive(name string) error {
     if name == "" {
@@ -56,7 +58,7 @@ body: |-
     r.active = name
     return nil
   }
-  
+
   // Active returns the active handler. ok is false if no active strategy is set
   // or the active name has no corresponding handler.
   func (r *Registry[H]) Active() (h H, ok bool) {
@@ -68,7 +70,7 @@ body: |-
     h, ok = r.handlers[r.active]
     return h, ok
   }
-  
+
   // Get returns a handler by name.
   func (r *Registry[H]) Get(name string) (h H, ok bool) {
     r.mu.RLock()
@@ -79,14 +81,14 @@ body: |-
     h, ok = r.handlers[name]
     return h, ok
   }
-  
+
   // Names returns sorted registered strategy names.
   func (r *Registry[H]) Names() []string {
     r.mu.RLock()
     defer r.mu.RUnlock()
     return r.namesLocked()
   }
-  
+
   func (r *Registry[H]) namesLocked() []string {
     if len(r.handlers) == 0 {
       return nil
@@ -99,37 +101,16 @@ body: |-
     return names
   }
 
-  // Processor is an atomic, named step in a strategy pipeline.
-  // It is recommended to keep processors stateless and reusable.
-  type Processor[S any] interface {
-    Name() string
-    Process(s *S) error
-  }
-
-  // ProcessorFunc adapts a function into a Processor.
-  type ProcessorFunc[S any] struct {
-    name string
-    fn   func(*S) error
-  }
-
-  func (p ProcessorFunc[S]) Name() string { return p.name }
-
-  func (p ProcessorFunc[S]) Process(s *S) error { return p.fn(s) }
-
-  func NewProcessorFunc[S any](name string, fn func(*S) error) Processor[S] {
-    return ProcessorFunc[S]{name: name, fn: fn}
-  }
-
   // ProcessorRegistry stores named processors.
   type ProcessorRegistry[S any] struct {
-    r *Registry[Processor[S]]
+    r *Registry[processor.Processor[S]]
   }
 
   func NewProcessorRegistry[S any]() *ProcessorRegistry[S] {
-    return &ProcessorRegistry[S]{r: NewRegistry[Processor[S]]()}
+    return &ProcessorRegistry[S]{r: NewRegistry[processor.Processor[S]]()}
   }
 
-  func (pr *ProcessorRegistry[S]) Register(p Processor[S]) error {
+  func (pr *ProcessorRegistry[S]) Register(p processor.Processor[S]) error {
     if p == nil {
       return fmt.Errorf("strategy: nil processor")
     }
@@ -141,10 +122,10 @@ body: |-
   }
 
   func (pr *ProcessorRegistry[S]) RegisterFunc(name string, fn func(*S) error) error {
-    return pr.r.Register(name, NewProcessorFunc[S](name, fn))
+    return pr.r.Register(name, processor.NewProcessorFunc[S](name, fn))
   }
 
-  func (pr *ProcessorRegistry[S]) Get(name string) (p Processor[S], ok bool) {
+  func (pr *ProcessorRegistry[S]) Get(name string) (p processor.Processor[S], ok bool) {
     return pr.r.Get(name)
   }
 

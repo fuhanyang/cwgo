@@ -1,0 +1,91 @@
+path: biz/processor/types.go
+update_behavior:
+  type: skip
+body: |-
+  package processor
+
+  import "fmt"
+
+  // DataField represents a field path in the context, e.g., "Req.Query", "Vars.UserScore".
+  type DataField string
+
+  // Contract defines the data dependency contract for a Processor.
+  type Contract struct {
+  	// Reads: Fields that this processor MUST read.
+  	// If these fields are not produced by previous steps in the pipeline, startup validation should fail.
+  	Reads []DataField
+
+  	// Writes: Fields that this processor promises to populate or modify.
+  	Writes []DataField
+  }
+
+  // Processor is an atomic, named step in a strategy pipeline.
+  // It is recommended to keep processors stateless and reusable.
+  type Processor[S any] interface {
+  	Name() string
+  	Process(s *S) error
+  	Contract() *Contract
+  }
+
+  // ProcessorFunc adapts a function into a Processor.
+  type ProcessorFunc[S any] struct {
+  	name string
+  	fn   func(*S) error
+  }
+
+  func (p ProcessorFunc[S]) Name() string { return p.name }
+
+  func (p ProcessorFunc[S]) Process(s *S) error { return p.fn(s) }
+
+  func (p ProcessorFunc[S]) Contract() *Contract { return &Contract{} }
+
+  func NewProcessorFunc[S any](name string, fn func(*S) error) Processor[S] {
+  	return ProcessorFunc[S]{name: name, fn: fn}
+  }
+
+  // ValidatePipeline validates a sequence of processors against their contracts.
+  func ValidatePipeline[S any](processors []Processor[S], initialFields []DataField) error {
+  	availableFields := make(map[DataField]bool)
+  	for _, f := range initialFields {
+  		availableFields[f] = true
+  	}
+
+  	for _, p := range processors {
+  		c := p.Contract()
+  		if c == nil {
+  			continue
+  		}
+
+  		// 1. Check dependencies
+  		for _, read := range c.Reads {
+  			// Check exact match or parent match (e.g., "Req" satisfies "Req.Query")
+  			satisfied := false
+  			if availableFields[read] {
+  				satisfied = true
+  			} else {
+  				// Simple hierarchical check: try finding a parent path
+  				// e.g. if we need "Req.Query", check if "Req" is available.
+  				s := string(read)
+  				for i := 0; i < len(s); i++ {
+  					if s[i] == '.' {
+  						parent := DataField(s[:i])
+  						if availableFields[parent] {
+  							satisfied = true
+  							break
+  						}
+  					}
+  				}
+  			}
+
+  			if !satisfied {
+  				return fmt.Errorf("pipeline validation failed: processor [%s] requires field [%s], but it is not available yet", p.Name(), read)
+  			}
+  		}
+
+  		// 2. Register produced fields
+  		for _, write := range c.Writes {
+  			availableFields[write] = true
+  		}
+  	}
+  	return nil
+  }

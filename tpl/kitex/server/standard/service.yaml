@@ -10,6 +10,7 @@ body: |-
     "fmt"
 
     "{{.Module}}/biz/strategy"
+    "{{.Module}}/biz/processor"
 
   	{{- range $path, $aliases := ( FilterImports .Imports .Methods )}}
   		{{- if not $aliases }}
@@ -40,7 +41,7 @@ body: |-
   }
 
   // {{.Name}}Processor is an atomic step in a strategy pipeline.
-  type {{.Name}}Processor = strategy.Processor[{{.Name}}State]
+  type {{.Name}}Processor = processor.Processor[{{.Name}}State]
 
   // {{.Name}}Processors stores named processors for {{.Name}}.
   var {{.Name}}Processors = strategy.NewProcessorRegistry[{{.Name}}State]()

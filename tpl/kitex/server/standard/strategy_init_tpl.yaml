@@ -10,6 +10,7 @@ body: |-
 
     "{{.Module}}/biz/service/{{SnakeString .ServiceName}}"
     "{{.Module}}/biz/strategy/{{SnakeString .ServiceName}}_strategy"
+    "{{.Module}}/biz/processor"
   	{{- range $path, $aliases := ( FilterImports .Imports .Methods )}}
   		{{- if not $aliases }}
   			"{{$path}}"
@@ -47,6 +48,25 @@ body: |-
       for strategyName, pipeline := range strategies {
         // Copy to avoid capturing the loop variable.
         steps := append([]string(nil), pipeline...)
+
+        // Validate pipeline contract
+        var procs []processor.Processor[{{SnakeString $.ServiceName}}.{{.Name}}State]
+        for _, name := range steps {
+            p, ok := {{SnakeString $.ServiceName}}.{{.Name}}Processors.Get(name)
+            if !ok {
+                return fmt.Errorf("{{.Name}} strategy %q: processor %q not found", strategyName, name)
+            }
+            procs = append(procs, p)
+        }
+        // ValidatePipeline ensures that every processor's required inputs are met by previous outputs.
+        if err := processor.ValidatePipeline(procs, []processor.DataField{
+            "Ctx",
+            {{- range .Args}}
+            "{{.Name}}",
+            {{- end}}
+        }); err != nil {
+            return fmt.Errorf("validate {{.Name}} strategy %q: %w", strategyName, err)
+        }
 
         {{ if .Void }}
         if err := {{SnakeString $.ServiceName}}.{{.Name}}Strategies.Register(strategyName, func(ctx context.Context, {{range .Args}}{{LowerFirst .Name}} {{.Type}}, {{end}}) error {
@@ -101,4 +121,3 @@ body: |-
     {{ end }}
     return nil
   }
-
