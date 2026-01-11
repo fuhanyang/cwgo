@@ -1,6 +1,6 @@
 path: biz/strategy/registry.go
 update_behavior:
-  type: skip
+  type: cover
 body: |-
   package strategy
   

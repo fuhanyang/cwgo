@@ -1,6 +1,6 @@
 path: biz/strategy/{{SnakeString .ServiceName}}_strategy/config.go
 update_behavior:
-  type: skip
+  type: cover
 body: |-
   package {{SnakeString .ServiceName}}_strategy
   

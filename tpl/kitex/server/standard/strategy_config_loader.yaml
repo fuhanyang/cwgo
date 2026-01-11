@@ -1,6 +1,6 @@
 path: biz/strategy/config_loader.go
 update_behavior:
-  type: skip
+  type: cover
 body: |-
   package strategy
   
@@ -18,8 +18,21 @@ body: |-
   // Example (YAML):
   //
   //   search:
-  //     default: ["init_response", "validate_req"]
-  //     debug:   ["init_response", "validate_req", "log_query"]
+  //     default:
+  //       - init_response
+  //       - validate_req
+  //       - normalize_query
+  //       - retrieve_candidates
+  //       - rank_simple
+  //       - build_response
+  //     debug:
+  //       - init_response
+  //       - validate_req
+  //       - normalize_query
+  //       - log_query
+  //       - retrieve_candidates
+  //       - rank_simple
+  //       - build_response
   type ServiceStrategyConfig map[string]map[string][]string
   
   // LoadStrategyConfigFromDir loads strategy config from a strategy package directory.
