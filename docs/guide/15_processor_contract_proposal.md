@@ -132,6 +132,17 @@ func ValidatePipeline[S any](processors []Processor[S], initialFields []DataFiel
 - **运行时**：零开销。校验在启动时完成，运行时仅执行 `Process()` 函数。
 - **启动时**：微秒级开销，完全可忽略。
 
+### 4.3 合理性与设计权衡 (Rationale & Trade-offs)
+
+该机制本质上是**编排时的“安全网” (Configuration Safety)**，而非运行时的强类型保证。
+
+1.  **定位**：解决动态编排带来的风险（如将“排序”误配在“召回”之前）。它保证 Processor 之间**“至少有机会”**成功协作，实现 **Fail Fast**。
+2.  **局限性**：
+    *   **弱契约 (Weak Contract)**：它是声明式的“承诺”，编译器无法验证代码逻辑是否真的履行了承诺（例如 `if` 分支导致未写入）。
+    *   **类型擦除**：基于字符串的映射无法替代运行时的 `nil` 检查。
+3.  **效率权衡**：
+    *   **运行时**：零开销。
+    *   **开发时**：虽然需要显式书写 Contract 带来少量代码冗余，但它提供了**自文档化 (Self-Documentation)** 的价值，使得在多人协作中理解陌生 Processor 的输入输出边界变得极其容易。
 ## 5. 高级模式：基于 DAG 的自动并行调度 (DAG-Based Auto-Parallelism)
 
 为了最大化利用多核性能，同时避免手动编排的复杂性，我们将“并行执行”与“依赖分析”合二为一，提出**智能并行处理器 (Smart DAG Processor)**。
