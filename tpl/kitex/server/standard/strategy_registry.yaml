@@ -7,17 +7,16 @@ body: |-
   import (
     "fmt"
     "sort"
-    "sync"
 
     "{{.Module}}/biz/processor"
   )
 
   // Registry stores named handlers and the currently active handler name.
-  // It is safe for concurrent reads after initialization.
+  // It is NOT thread-safe for writes. All registrations must happen before
+  // the service starts handling requests (e.g. in init() or main()).
+  // Reads (Get/Active) are concurrent-safe assuming no writes happen after initialization.
   type Registry[H any] struct {
-    mu       sync.RWMutex
     handlers map[string]H
-    active   string
   }
 
   func NewRegistry[H any]() *Registry[H] {
@@ -26,12 +25,11 @@ body: |-
 
   // Register registers a handler under a name.
   // It returns an error if name is empty or already registered.
+  // NOTE: Call this ONLY during initialization, before starting the server.
   func (r *Registry[H]) Register(name string, h H) error {
     if name == "" {
       return fmt.Errorf("strategy: empty name")
     }
-    r.mu.Lock()
-    defer r.mu.Unlock()
     if r.handlers == nil {
       r.handlers = make(map[string]H)
     }
@@ -42,39 +40,8 @@ body: |-
     return nil
   }
 
-  // SetActive selects an already-registered strategy name as active.
-  func (r *Registry[H]) SetActive(name string) error {
-    if name == "" {
-      return fmt.Errorf("strategy: empty active name")
-    }
-    r.mu.Lock()
-    defer r.mu.Unlock()
-    if r.handlers == nil {
-      return fmt.Errorf("strategy: %q not found (no strategies registered)", name)
-    }
-    if _, ok := r.handlers[name]; !ok {
-      return fmt.Errorf("strategy: %q not found (available: %v)", name, r.namesLocked())
-    }
-    r.active = name
-    return nil
-  }
-
-  // Active returns the active handler. ok is false if no active strategy is set
-  // or the active name has no corresponding handler.
-  func (r *Registry[H]) Active() (h H, ok bool) {
-    r.mu.RLock()
-    defer r.mu.RUnlock()
-    if r.handlers == nil || r.active == "" {
-      return h, false
-    }
-    h, ok = r.handlers[r.active]
-    return h, ok
-  }
-
   // Get returns a handler by name.
   func (r *Registry[H]) Get(name string) (h H, ok bool) {
-    r.mu.RLock()
-    defer r.mu.RUnlock()
     if r.handlers == nil || name == "" {
       return h, false
     }
@@ -84,8 +51,6 @@ body: |-
 
   // Names returns sorted registered strategy names.
   func (r *Registry[H]) Names() []string {
-    r.mu.RLock()
-    defer r.mu.RUnlock()
     return r.namesLocked()
   }
 
