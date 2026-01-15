@@ -6,27 +6,76 @@ body: |-
   package {{SnakeString .ServiceName}}_strategy
 
   import (
+    "context"
+    "fmt"
+
+    "{{.Module}}/biz/processor"
+    "{{.Module}}/biz/processor/common"
     "{{.Module}}/biz/service/{{SnakeString .ServiceName}}"
+    "{{.Module}}/biz/strategy"
+  	{{- range $path, $aliases := ( FilterImports .Imports .Methods )}}
+  		{{- if not $aliases }}
+  			"{{$path}}"
+      {{- else if or (eq $path "github.com/cloudwego/kitex/client") (eq $path "github.com/cloudwego/kitex/pkg/serviceinfo")}}
+  		{{- else}}
+  			{{- range $alias, $is := $aliases}}
+  				{{$alias}} "{{$path}}"
+  			{{- end}}
+  		{{- end}}
+  	{{- end}}
   )
 
   {{range .Methods}}
-  // Keep the imported service package used even if you haven't registered processors yet.
-  var _ = {{SnakeString .ServiceName}}.{{.Name}}Processors
+  // Init{{.Name}}Strategies initializes strategies for {{.Name}}.
+  func Init{{.Name}}Strategies(cfg strategy.ServiceStrategyConfig) error {
+    reg := strategy.NewProcessorRegistry[{{SnakeString $.ServiceName}}.{{.Name}}State]()
 
-  // Register{{.Name}}Processors registers named processors for {{.Name}}.
-  // These processor names should match:
-  //   biz/strategy/{{SnakeString $.ServiceName}}_strategy/strategy.yaml (or strategy.<env>.yaml)
-  //
-  // Example:
-  //   {{SnakeString .Name}}:
-  //     default: ["check_permission", "do_{{SnakeString .Name}}"]
-  func Register{{.Name}}Processors() error {
+    // 1) Register service-specific processors here.
     // Example:
-    // return {{SnakeString .ServiceName}}.{{.Name}}Processors.RegisterFunc("check_permission", func(s *{{SnakeString .ServiceName}}.{{.Name}}State) error {
-    //   // TODO: your logic here
-    //   return nil
-    // })
-    return nil
+    // if err := somepkg.InstallProcessors(reg); err != nil { ... }
+
+    // 2) Register generic processors (cross-cutting)
+    if err := reg.Register(processor.WrapGenericProcessor[{{SnakeString $.ServiceName}}.{{.Name}}State]("log", common.LogProcessor)); err != nil {
+      return fmt.Errorf("register generic processor log: %w", err)
+    }
+
+    // 3) Build strategies from config (strategy -> ordered processors).
+    {{- if .Void}}
+    return BuildAndRegisterVoidStrategies(
+      cfg,
+      "{{SnakeString .Name}}",
+      reg,
+      {{SnakeString $.ServiceName}}.{{.Name}}Strategies,
+      func(ctx context.Context, req {{(index .Args 0).Type}}) *{{SnakeString $.ServiceName}}.{{.Name}}State {
+        return &{{SnakeString $.ServiceName}}.{{.Name}}State{
+          Ctx:  ctx,
+          Req:  req,
+          Vars: map[string]any{},
+        }
+      },
+      func(f func(context.Context, {{(index .Args 0).Type}}) error) {{SnakeString $.ServiceName}}.{{.Name}}Handler {
+        return {{SnakeString $.ServiceName}}.{{.Name}}Handler(f)
+      },
+    )
+    {{- else}}
+    return BuildAndRegisterStrategies(
+      cfg,
+      "{{SnakeString .Name}}",
+      reg,
+      {{SnakeString $.ServiceName}}.{{.Name}}Strategies,
+      func(ctx context.Context, req {{(index .Args 0).Type}}) *{{SnakeString $.ServiceName}}.{{.Name}}State {
+        return &{{SnakeString $.ServiceName}}.{{.Name}}State{
+          Ctx:  ctx,
+          Req:  req,
+          Vars: map[string]any{},
+        }
+      },
+      func(s *{{SnakeString $.ServiceName}}.{{.Name}}State) {{.Resp.Type}} { return s.Resp },
+      func(f func(context.Context, {{(index .Args 0).Type}}) ({{.Resp.Type}}, error)) {{SnakeString $.ServiceName}}.{{.Name}}Handler {
+        return {{SnakeString $.ServiceName}}.{{.Name}}Handler(f)
+      },
+    )
+    {{- end}}
   }
   {{end}}
 

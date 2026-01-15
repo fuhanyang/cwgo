@@ -1,0 +1,123 @@
+path: biz/strategy/{{SnakeString .ServiceName}}_strategy/builder.go
+update_behavior:
+  type: skip
+body: |-
+  package {{SnakeString .ServiceName}}_strategy
+
+  import (
+    "context"
+    "fmt"
+
+    "{{.Module}}/biz/processor"
+    "{{.Module}}/biz/strategy"
+  )
+
+  // BuildAndRegisterStrategies builds strategy pipelines from config and registers them.
+  // S: State type (e.g. LoginState)
+  // Req: Request type (e.g. *LoginReq)
+  // Resp: Response type (e.g. *LoginResp)
+  // H: Handler type (e.g. LoginHandler)
+  func BuildAndRegisterStrategies[S any, Req any, Resp any, H any](
+    cfg strategy.ServiceStrategyConfig,
+    configKey string,
+    procRegistry *strategy.ProcessorRegistry[S],
+    stratRegistry *strategy.Registry[H],
+    newState func(context.Context, Req) *S,
+    getResp func(*S) Resp,
+    wrapHandler func(func(context.Context, Req) (Resp, error)) H,
+  ) error {
+    strategies := cfg[configKey]
+    if len(strategies) == 0 {
+      strategies = map[string][]string{"default": []string{}}
+    }
+
+    for strategyName, pipeline := range strategies {
+      // Copy to avoid capturing the loop variable.
+      steps := append([]string(nil), pipeline...)
+
+      // Validate pipeline contract
+      var procs []processor.Processor[S]
+      for _, name := range steps {
+        p, ok := procRegistry.Get(name)
+        if !ok {
+          return fmt.Errorf("strategy %q (%s): processor %q not found", configKey, strategyName, name)
+        }
+        procs = append(procs, p)
+      }
+
+      // ValidatePipeline ensures that every processor's required inputs are met by previous outputs.
+      if err := processor.ValidatePipeline(procs, []processor.DataField{
+        "Ctx",
+        "Req",
+      }); err != nil {
+        return fmt.Errorf("validate strategy %q (%s): %w", configKey, strategyName, err)
+      }
+
+      handler := func(ctx context.Context, req Req) (Resp, error) {
+        st := newState(ctx, req)
+        for _, proc := range procs {
+          if err := proc.Process(st); err != nil {
+            var zero Resp
+            return zero, fmt.Errorf("strategy %q (%s): processor %q failed: %w", configKey, strategyName, proc.Name(), err)
+          }
+        }
+        return getResp(st), nil
+      }
+
+      if err := stratRegistry.Register(strategyName, wrapHandler(handler)); err != nil {
+        return fmt.Errorf("register strategy %q (%s): %w", configKey, strategyName, err)
+      }
+    }
+    return nil
+  }
+
+  // BuildAndRegisterVoidStrategies builds strategy pipelines for void methods and registers them.
+  func BuildAndRegisterVoidStrategies[S any, Req any, H any](
+    cfg strategy.ServiceStrategyConfig,
+    configKey string,
+    procRegistry *strategy.ProcessorRegistry[S],
+    stratRegistry *strategy.Registry[H],
+    newState func(context.Context, Req) *S,
+    wrapHandler func(func(context.Context, Req) error) H,
+  ) error {
+    strategies := cfg[configKey]
+    if len(strategies) == 0 {
+      strategies = map[string][]string{"default": []string{}}
+    }
+
+    for strategyName, pipeline := range strategies {
+      steps := append([]string(nil), pipeline...)
+
+      var procs []processor.Processor[S]
+      for _, name := range steps {
+        p, ok := procRegistry.Get(name)
+        if !ok {
+          return fmt.Errorf("strategy %q (%s): processor %q not found", configKey, strategyName, name)
+        }
+        procs = append(procs, p)
+      }
+
+      if err := processor.ValidatePipeline(procs, []processor.DataField{
+        "Ctx",
+        "Req",
+      }); err != nil {
+        return fmt.Errorf("validate strategy %q (%s): %w", configKey, strategyName, err)
+      }
+
+      handler := func(ctx context.Context, req Req) error {
+        st := newState(ctx, req)
+        for _, proc := range procs {
+          if err := proc.Process(st); err != nil {
+            return fmt.Errorf("strategy %q (%s): processor %q failed: %w", configKey, strategyName, proc.Name(), err)
+          }
+        }
+        return nil
+      }
+
+      if err := stratRegistry.Register(strategyName, wrapHandler(handler)); err != nil {
+        return fmt.Errorf("register strategy %q (%s): %w", configKey, strategyName, err)
+      }
+    }
+    return nil
+  }
+

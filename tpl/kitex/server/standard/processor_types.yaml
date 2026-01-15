@@ -4,7 +4,10 @@ update_behavior:
 body: |-
   package processor
 
-  import "fmt"
+  import (
+    "context"
+    "fmt"
+  )
 
   // DataField represents a field path in the context, e.g., "Req.Query", "Vars.UserScore".
   type DataField string
@@ -88,4 +91,26 @@ body: |-
   		}
   	}
   	return nil
+  }
+
+  // StandardState is an interface that allows generic processors to access common state fields.
+  type StandardState interface {
+    GetContext() context.Context
+    SetContext(ctx context.Context)
+    GetVars() map[string]any
+  }
+
+  // GenericProcessorFunc is a function that operates on StandardState.
+  type GenericProcessorFunc func(StandardState) error
+
+  // WrapGenericProcessor adapts a GenericProcessorFunc into a Processor[S].
+  // S must be a pointer type that implements StandardState, but since generic constraints
+  // on pointer methods are tricky in Go, we check at runtime.
+  func WrapGenericProcessor[S any](name string, fn GenericProcessorFunc) Processor[S] {
+    return NewProcessorFunc(name, func(s *S) error {
+      if ss, ok := any(s).(StandardState); ok {
+        return fn(ss)
+      }
+      return fmt.Errorf("processor %s requires state to implement StandardState", name)
+    })
   }

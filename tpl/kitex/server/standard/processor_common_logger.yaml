@@ -1,0 +1,17 @@
+path: biz/processor/common/logger.go
+update_behavior:
+  type: skip
+body: |-
+  package common
+
+  import (
+    "github.com/cloudwego/kitex/pkg/klog"
+    "{{.Module}}/biz/processor"
+  )
+
+  // LogProcessor is a generic processor that logs the current state.
+  func LogProcessor(s processor.StandardState) error {
+    klog.CtxInfof(s.GetContext(), "Generic Processor [Log]: Vars=%v", s.GetVars())
+    return nil
+  }
+
